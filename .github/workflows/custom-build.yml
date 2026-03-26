@@ -22,37 +22,34 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      # 1. 윈도우용 실행 파일 빌드 (가장 확률 높은 태스크들 실행)
+      # 1. 윈도우 빌드 (clean 추가로 강제 빌드 유도)
       - name: Build Windows
         run: |
-          ./gradlew :triplea:packageWindows || \
+          ./gradlew clean :triplea:packageWindows || \
           ./gradlew :workflow:packageWindows || \
-          ./gradlew packageWindows || \
-          ./gradlew :triplea:packagePlatforms -Pplatforms=windows || \
-          echo "Windows build failed but moving on..."
+          ./gradlew packageWindows
+        continue-on-error: true
 
-      # 2. 안드로이드용 APK 빌드
+      # 2. 안드로이드 빌드 (강제 컴파일)
       - name: Build Android
         run: |
-          ./gradlew :android:assembleDebug || \
-          ./gradlew assembleDebug || \
-          echo "Android build failed but moving on..."
+          ./gradlew :android:assembleDebug --stacktrace
+        continue-on-error: true
 
-      # 3. [중요] 생성된 파일 찾기 (디버깅용)
-      # 실제로 어떤 파일들이 만들어졌는지 로그에 찍어서 경로를 확인합니다.
-      - name: Locate Files
+      # 3. 파일이 진짜 어디 있는지 하이라이트 해서 보여줘!
+      - name: Search for Results
         run: |
+          echo "--- Looking for APKs ---"
           find . -name "*.apk"
+          echo "--- Looking for ZIPs ---"
           find . -name "*.zip"
 
-      # 4. 결과물 업로드 (경로를 극도로 유연하게 설정)
+      # 4. 결과물 업로드 (필터링 없이 싹 다 긁어오기)
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TripleA-Build-Files
-          # 모든 하위 폴더에서 .apk와 .zip을 찾아서 업로드
+          name: TripleA-Force-Build
           path: |
             **/*.apk
             **/*.zip
-          # 파일이 없어도 에러를 내지 않도록 설정 (테스트용)
-          if-no-files-found: warn
+          if-no-files-found: error # 파일 없으면 이번엔 에러 내서 알려줘!
