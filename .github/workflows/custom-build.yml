@@ -22,28 +22,37 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      # 1. 윈도우용 패키징 (최신 구조에서는 game-app 하위의 배포 태스크를 사용합니다)
-      - name: Build Windows Executable
+      # 1. 윈도우/전체 플랫폼 패키징 (TripleA 정식 태스크)
+      - name: Build Game Installers
         run: |
-          ./gradlew :game-app:packageWindows || \
-          ./gradlew :game-app:bundleWindows || \
-          ./gradlew :workflow:packageWindows
+          ./gradlew :triplea:packagePlatforms -Pplatforms=windows || \
+          ./gradlew :workflow:packageWindows || \
+          ./gradlew packageWindows
         continue-on-error: true
 
-      # 2. 안드로이드용 APK 빌드 (안드로이드 모듈이 별도로 존재할 경우)
-      - name: Build Android APK
-        run: |
-          ./gradlew :android:assembleDebug || \
-          ./gradlew :game-android:assembleDebug || \
-          ./gradlew assembleDebug
+      # 2. 범용 실행 파일 (JAR) 생성 - 만약 EXE가 실패하면 이거라도 써야 합니다.
+      - name: Build Game JAR
+        run: ./gradlew :game-app:jar || ./gradlew jar
         continue-on-error: true
 
-      # 3. 결과물 찾기 및 업로드 (모든 .zip과 .apk 수집)
+      # 3. 안드로이드 빌드 (모듈이 존재하는지 확인 후 실행)
+      - name: Build Android
+        run: |
+          if [ -d "android" ]; then
+            ./gradlew :android:assembleDebug
+          else
+            echo "Android module not found in this repository."
+          fi
+        continue-on-error: true
+
+      # 4. 결과물 찾기 및 업로드 (가장 중요한 단계)
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TripleA-Final-Build
+          name: TripleA-Game-Files
           path: |
-            **/*.zip
-            **/*.apk
+            **/build/deployment/bundles/*.zip
+            **/build/libs/*.jar
+            **/build/outputs/apk/debug/*.apk
+            **/build/distributions/*.zip
           if-no-files-found: error
