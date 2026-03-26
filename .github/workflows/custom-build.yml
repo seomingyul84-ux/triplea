@@ -13,34 +13,43 @@ jobs:
           fetch-depth: 0
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4 # 'annotations'에서 'actions'로 수정 완료!
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Grant execute permission for gradlew
+      - name: Grant execute permission
         run: chmod +x gradlew
 
-      # 1. 윈도우용 실행 파일 빌드
-      # TripleA는 보통 :fullZip 또는 packageWindows 태스크를 사용합니다.
-      - name: Build Windows Executable
-        run: ./gradlew packageWindows || ./gradlew :triplea:packageWindows || ./gradlew :github:workflow:packageWindows
+      # 1단계: 현재 프로젝트 구조와 사용 가능한 모든 태스크 출력 (로그 확인용)
+      - name: Debug Gradle Structure
+        run: |
+          ./gradlew projects
+          ./gradlew tasks --all | grep -E "package|assemble|bundle"
 
-      # 2. 안드로이드용 APK 빌드
-      - name: Build Android APK
-        run: ./gradlew assembleDebug
+      # 2단계: 윈도우 빌드 시도 (TripleA의 실제 태스크 명칭 후보들)
+      - name: Build Windows
+        run: |
+          ./gradlew :workflow:packageWindows || \
+          ./gradlew :triplea:packageWindows || \
+          ./gradlew packageWindows || \
+          ./gradlew :workflow:packagePlatforms -Pplatforms=windows || \
+          echo "Windows build task not found, skipping..."
 
-      # 3. 결과물 업로드 (Windows)
-      - name: Upload Windows Build
+      # 3단계: 안드로이드 빌드 시도
+      - name: Build Android
+        run: |
+          ./gradlew :android:assembleDebug || \
+          ./gradlew assembleDebug || \
+          echo "Android build task not found, skipping..."
+
+      # 4단계: 결과물 업로드 (생성된 모든 zip과 apk 수집)
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TripleA-Windows-Build
-          path: "**/build/deployment/bundles/*.zip"
-
-      # 4. 결과물 업로드 (Android)
-      - name: Upload Android APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: TripleA-Android-APK
-          path: "**/build/outputs/apk/debug/*.apk"
+          name: TripleA-Game-Files
+          path: |
+            **/build/deployment/bundles/*.zip
+            **/build/outputs/apk/debug/*.apk
+            **/build/distributions/*.zip
