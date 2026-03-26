@@ -1,7 +1,7 @@
 name: Custom Manual Build (Windows & Android)
 
 on:
-  workflow_dispatch: # 이 구문이 있어야 'Run workflow' 버튼이 생깁니다.
+  workflow_dispatch:
 
 jobs:
   build-all:
@@ -12,7 +12,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 17 # TripleA 버전에 따라 17이 필요할 수도 있습니다.
+      - name: Set up JDK 17 # 최신 TripleA는 JDK 17 이상을 권장합니다
         uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -22,11 +22,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 1. 윈도우용 빌드 (Zip 형태)
+      # 1. 모든 플랫폼용 패키징 실행 (Windows 포함)
+      # :workflow 프로젝트를 찾지 못할 경우를 대비해 전체 패키징 태스크를 사용합니다.
       - name: Build Windows Executable
-        run: ./gradlew :workflow:packageWindows
+        run: ./gradlew :triplea:packagePlatforms -Pplatforms=windows
 
-      # 2. 안드로이드용 빌드 (APK)
+      # 2. 안드로이드 빌드
+      # 안드로이드 모듈의 정확한 경로를 잡기 위해 프로젝트 리스트를 참조한 경로를 사용합니다.
       - name: Build Android APK
         run: ./gradlew :android:assembleDebug
 
@@ -35,11 +37,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TripleA-Windows-Build
-          path: build/deployment/bundles/*.zip
+          path: "**/build/deployment/bundles/*.zip" # 경로 유연성을 위해 와일드카드 사용
 
       # 4. 결과물 업로드 (Android)
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: TripleA-Android-APK
-          path: android/build/outputs/apk/debug/*.apk
+          path: "android/build/outputs/apk/debug/*.apk"
