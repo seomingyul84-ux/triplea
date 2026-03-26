@@ -22,29 +22,27 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      # 1. 가용한 모든 프로젝트/태스크 출력 (실패 시 원인 파악용)
-      - name: Debug Structure
+      # 1. 윈도우용 패키징 (최신 구조에서는 game-app 하위의 배포 태스크를 사용합니다)
+      - name: Build Windows Executable
         run: |
-          ./gradlew projects
-          ./gradlew tasks --all | grep -E "packageWindows|assembleDebug"
-
-      # 2. 윈도우 빌드 (가장 확률 높은 명령어 2개를 순차 시도)
-      - name: Build Windows
-        run: |
-          ./gradlew packageWindows || ./gradlew :workflow:packageWindows || echo "Windows build failed"
+          ./gradlew :game-app:packageWindows || \
+          ./gradlew :game-app:bundleWindows || \
+          ./gradlew :workflow:packageWindows
         continue-on-error: true
 
-      # 3. 안드로이드 빌드
-      - name: Build Android
+      # 2. 안드로이드용 APK 빌드 (안드로이드 모듈이 별도로 존재할 경우)
+      - name: Build Android APK
         run: |
-          ./gradlew assembleDebug || ./gradlew :android:assembleDebug || echo "Android build failed"
+          ./gradlew :android:assembleDebug || \
+          ./gradlew :game-android:assembleDebug || \
+          ./gradlew assembleDebug
         continue-on-error: true
 
-      # 4. 결과물 업로드 (위치가 어디든 .zip과 .apk면 다 가져옴)
+      # 3. 결과물 찾기 및 업로드 (모든 .zip과 .apk 수집)
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TripleA-Manual-Build
+          name: TripleA-Final-Build
           path: |
             **/*.zip
             **/*.apk
