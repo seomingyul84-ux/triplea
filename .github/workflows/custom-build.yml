@@ -13,7 +13,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up JDK 17
-        uses: annotations/setup-java@v4
+        uses: actions/setup-java@v4 # 'annotations'에서 'actions'로 수정 완료!
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -22,16 +22,12 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # [중요] 사용 가능한 모든 프로젝트와 태스크 목록을 로그에 남깁니다 (디버깅용)
-      - name: List Gradle Projects
-        run: ./gradlew projects
-
-      # 1. 윈도우 패키징 (경로가 불확실할 때 가장 안전한 호출 방식)
-      # :workflow 대신 프로젝트 전체에서 packageWindows를 찾도록 실행합니다.
+      # 1. 윈도우용 실행 파일 빌드
+      # TripleA는 보통 :fullZip 또는 packageWindows 태스크를 사용합니다.
       - name: Build Windows Executable
         run: ./gradlew packageWindows || ./gradlew :triplea:packageWindows || ./gradlew :github:workflow:packageWindows
 
-      # 2. 안드로이드 빌드
+      # 2. 안드로이드용 APK 빌드
       - name: Build Android APK
         run: ./gradlew assembleDebug
 
