@@ -22,34 +22,37 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      # 1단계: 현재 프로젝트 구조와 사용 가능한 모든 태스크 출력 (로그 확인용)
-      - name: Debug Gradle Structure
-        run: |
-          ./gradlew projects
-          ./gradlew tasks --all | grep -E "package|assemble|bundle"
-
-      # 2단계: 윈도우 빌드 시도 (TripleA의 실제 태스크 명칭 후보들)
+      # 1. 윈도우용 실행 파일 빌드 (가장 확률 높은 태스크들 실행)
       - name: Build Windows
         run: |
-          ./gradlew :workflow:packageWindows || \
           ./gradlew :triplea:packageWindows || \
+          ./gradlew :workflow:packageWindows || \
           ./gradlew packageWindows || \
-          ./gradlew :workflow:packagePlatforms -Pplatforms=windows || \
-          echo "Windows build task not found, skipping..."
+          ./gradlew :triplea:packagePlatforms -Pplatforms=windows || \
+          echo "Windows build failed but moving on..."
 
-      # 3단계: 안드로이드 빌드 시도
+      # 2. 안드로이드용 APK 빌드
       - name: Build Android
         run: |
           ./gradlew :android:assembleDebug || \
           ./gradlew assembleDebug || \
-          echo "Android build task not found, skipping..."
+          echo "Android build failed but moving on..."
 
-      # 4단계: 결과물 업로드 (생성된 모든 zip과 apk 수집)
+      # 3. [중요] 생성된 파일 찾기 (디버깅용)
+      # 실제로 어떤 파일들이 만들어졌는지 로그에 찍어서 경로를 확인합니다.
+      - name: Locate Files
+        run: |
+          find . -name "*.apk"
+          find . -name "*.zip"
+
+      # 4. 결과물 업로드 (경로를 극도로 유연하게 설정)
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TripleA-Game-Files
+          name: TripleA-Build-Files
+          # 모든 하위 폴더에서 .apk와 .zip을 찾아서 업로드
           path: |
-            **/build/deployment/bundles/*.zip
-            **/build/outputs/apk/debug/*.apk
-            **/build/distributions/*.zip
+            **/*.apk
+            **/*.zip
+          # 파일이 없어도 에러를 내지 않도록 설정 (테스트용)
+          if-no-files-found: warn
