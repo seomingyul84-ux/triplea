@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-all:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -22,34 +22,20 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      # 1. 윈도우 빌드 (clean 추가로 강제 빌드 유도)
-      - name: Build Windows
-        run: |
-          ./gradlew clean :triplea:packageWindows || \
-          ./gradlew :workflow:packageWindows || \
-          ./gradlew packageWindows
-        continue-on-error: true
+      # 1. 윈도우용 빌드 (TripleA의 정식 태스크는 :workflow:packageWindows 입니다)
+      - name: Build Windows Executable
+        run: ./gradlew :workflow:packageWindows --no-daemon
 
-      # 2. 안드로이드 빌드 (강제 컴파일)
-      - name: Build Android
-        run: |
-          ./gradlew :android:assembleDebug --stacktrace
-        continue-on-error: true
+      # 2. 안드로이드용 APK 빌드 (Debug 모드)
+      - name: Build Android APK
+        run: ./gradlew :android:assembleDebug --no-daemon
 
-      # 3. 파일이 진짜 어디 있는지 하이라이트 해서 보여줘!
-      - name: Search for Results
-        run: |
-          echo "--- Looking for APKs ---"
-          find . -name "*.apk"
-          echo "--- Looking for ZIPs ---"
-          find . -name "*.zip"
-
-      # 4. 결과물 업로드 (필터링 없이 싹 다 긁어오기)
+      # 3. 결과물 수집 및 업로드
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TripleA-Force-Build
+          name: TripleA-Game-Files
           path: |
-            **/*.apk
-            **/*.zip
-          if-no-files-found: error # 파일 없으면 이번엔 에러 내서 알려줘!
+            workflow/build/deployment/bundles/*.zip
+            android/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
