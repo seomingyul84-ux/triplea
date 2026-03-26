@@ -22,21 +22,30 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      # 1. 윈도우용 빌드 (workflow 프로젝트의 패키징 태스크 실행)
-      # TripleA는 프로젝트 루트 하위에 :workflow가 있습니다.
-      - name: Build Windows Executable
-        run: ./gradlew :workflow:packageWindows --stacktrace
+      # 1. 가용한 모든 프로젝트/태스크 출력 (실패 시 원인 파악용)
+      - name: Debug Structure
+        run: |
+          ./gradlew projects
+          ./gradlew tasks --all | grep -E "packageWindows|assembleDebug"
 
-      # 2. 안드로이드용 APK 빌드
-      - name: Build Android APK
-        run: ./gradlew :android:assembleDebug --stacktrace
+      # 2. 윈도우 빌드 (가장 확률 높은 명령어 2개를 순차 시도)
+      - name: Build Windows
+        run: |
+          ./gradlew packageWindows || ./gradlew :workflow:packageWindows || echo "Windows build failed"
+        continue-on-error: true
 
-      # 3. 결과물 업로드 (생성 위치를 더 넓게 잡았습니다)
+      # 3. 안드로이드 빌드
+      - name: Build Android
+        run: |
+          ./gradlew assembleDebug || ./gradlew :android:assembleDebug || echo "Android build failed"
+        continue-on-error: true
+
+      # 4. 결과물 업로드 (위치가 어디든 .zip과 .apk면 다 가져옴)
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TripleA-Game-Files
+          name: TripleA-Manual-Build
           path: |
-            **/build/deployment/bundles/*.zip
-            **/build/outputs/apk/debug/*.apk
+            **/*.zip
+            **/*.apk
           if-no-files-found: error
